@@ -23,6 +23,14 @@
 
 struct jrpc_server my_server;
 
+// 全局变量用于存储模拟量输入值
+double ai1 = 0.0;
+double ai2 = 0.0;
+
+// 全局变量用于存储离散量输入值
+bool di1 = false;
+bool di2 = false;
+
 cJSON* say_hello(jrpc_context *ctx, cJSON *params, cJSON *id) {
 	return cJSON_CreateString("Hello!");
 }
@@ -41,9 +49,119 @@ cJSON* read_analog(jrpc_context *ctx, cJSON *params, cJSON *id) {
 	// 创建返回的JSON对象
 	cJSON *result = cJSON_CreateObject();
 
-	// 添加ao1和ao2的数值
+	// 添加ao1和ao2的固定数值
 	cJSON_AddNumberToObject(result, "ao1", 300.5);
 	cJSON_AddNumberToObject(result, "ao2", 1256.9);
+
+	// 添加ai1和ai2的当前数值（可通过write_analog修改）
+	cJSON_AddNumberToObject(result, "ai1", ai1);
+	cJSON_AddNumberToObject(result, "ai2", ai2);
+
+	return result;
+}
+
+cJSON* write_analog(jrpc_context *ctx, cJSON *params, cJSON *id) {
+	// 检查参数是否为数组
+	if (!params || !cJSON_IsArray(params)) {
+		ctx->error_code = JRPC_INVALID_PARAMS;
+		ctx->error_message = strdup("Parameters must be an array");
+		return NULL;
+	}
+
+	// 检查数组是否包含两个元素
+	if (cJSON_GetArraySize(params) != 2) {
+		ctx->error_code = JRPC_INVALID_PARAMS;
+		ctx->error_message = strdup("Parameters array must contain exactly 2 elements");
+		return NULL;
+	}
+
+	// 获取数组中的两个数值
+	cJSON *value1 = cJSON_GetArrayItem(params, 0);
+	cJSON *value2 = cJSON_GetArrayItem(params, 1);
+
+	// 检查参数是否为数字
+	if (!value1 || !cJSON_IsNumber(value1) || !value2 || !cJSON_IsNumber(value2)) {
+		ctx->error_code = JRPC_INVALID_PARAMS;
+		ctx->error_message = strdup("Both parameters must be numbers");
+		return NULL;
+	}
+
+	// 将数值写入全局变量
+	ai1 = value1->valuedouble;
+	ai2 = value2->valuedouble;
+
+	// 创建成功响应
+	cJSON *result = cJSON_CreateObject();
+	cJSON_AddStringToObject(result, "status", "success");
+	cJSON_AddStringToObject(result, "message", "Analog values written successfully");
+	cJSON_AddNumberToObject(result, "ai1", ai1);
+	cJSON_AddNumberToObject(result, "ai2", ai2);
+
+	return result;
+}
+
+cJSON* read_discrete(jrpc_context *ctx, cJSON *params, cJSON *id) {
+	// 创建返回的JSON对象
+	cJSON *result = cJSON_CreateObject();
+
+	// 添加do1和do2的固定布尔值（输出）
+	cJSON_AddBoolToObject(result, "do1", true);
+	cJSON_AddBoolToObject(result, "do2", false);
+
+	// 添加di1和di2的当前值（输入，来自write_discrete写入的值）
+	cJSON_AddBoolToObject(result, "di1", di1);
+	cJSON_AddBoolToObject(result, "di2", di2);
+
+	return result;
+}
+
+cJSON* write_discrete(jrpc_context *ctx, cJSON *params, cJSON *id) {
+	// 检查参数是否为数组
+	if (!params || !cJSON_IsArray(params)) {
+		ctx->error_code = JRPC_INVALID_PARAMS;
+		ctx->error_message = strdup("Parameters must be an array");
+		return NULL;
+	}
+
+	// 检查数组是否包含两个元素
+	if (cJSON_GetArraySize(params) != 2) {
+		ctx->error_code = JRPC_INVALID_PARAMS;
+		ctx->error_message = strdup("Parameters array must contain exactly 2 elements");
+		return NULL;
+	}
+
+	// 获取数组中的两个数值
+	cJSON *value1 = cJSON_GetArrayItem(params, 0);
+	cJSON *value2 = cJSON_GetArrayItem(params, 1);
+
+	// 检查参数是否为布尔值
+	if (!value1 || (!cJSON_IsBool(value1) && !cJSON_IsNumber(value1)) ||
+	    !value2 || (!cJSON_IsBool(value2) && !cJSON_IsNumber(value2))) {
+		ctx->error_code = JRPC_INVALID_PARAMS;
+		ctx->error_message = strdup("Both parameters must be boolean values or numbers (0/1)");
+		return NULL;
+	}
+
+	// 将布尔值写入全局变量
+	// 支持布尔值和数字（0为false，非0为true）
+	if (cJSON_IsBool(value1)) {
+		di1 = cJSON_IsTrue(value1);
+	} else {
+		di1 = (value1->valueint != 0);
+	}
+
+	if (cJSON_IsBool(value2)) {
+		di2 = cJSON_IsTrue(value2);
+	} else {
+		di2 = (value2->valueint != 0);
+	}
+
+	// 创建成功响应
+	cJSON *result = cJSON_CreateObject();
+	cJSON_AddStringToObject(result, "status", "success");
+	cJSON_AddStringToObject(result, "message", "Discrete values written successfully");
+	cJSON_AddBoolToObject(result, "di1", di1);
+	cJSON_AddBoolToObject(result, "di2", di2);
 
 	return result;
 }
@@ -60,6 +178,9 @@ int main(void) {
 	jrpc_register_procedure(&my_server, add, "add", NULL);
 	jrpc_register_procedure(&my_server, notify, "notify", NULL);
 	jrpc_register_procedure(&my_server, read_analog, "read_analog", NULL);
+	jrpc_register_procedure(&my_server, write_analog, "write_analog", NULL);
+	jrpc_register_procedure(&my_server, read_discrete, "read_discrete", NULL);
+	jrpc_register_procedure(&my_server, write_discrete, "write_discrete", NULL);
 	jrpc_register_procedure(&my_server, exit_server, "exit", NULL);
 	jrpc_server_run(&my_server);
 	jrpc_server_destroy(&my_server);
