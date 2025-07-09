@@ -17,6 +17,7 @@
 #include <arpa/inet.h>
 #include <sys/wait.h>
 #include <signal.h>
+#include <stdbool.h>
 #include "jsonrpc-c.h"
 
 #define PORT 1234  // the port users will be connecting to
