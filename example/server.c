@@ -21,7 +21,7 @@
 #include <time.h>
 #include "jsonrpc-c.h"
 
-#define PORT 1234  // the port users will be connecting to
+#define PORT 8090   // the port users will be connecting to
 
 struct jrpc_server my_server;
 ev_timer update_timer;
@@ -79,9 +79,13 @@ cJSON* read_analog(jrpc_context *ctx, cJSON *params, cJSON *id) {
 	// 创建返回的JSON对象
 	cJSON *result = cJSON_CreateObject();
 
-	// 添加ao1和ao2的当前数值（由定时器更新）
+	// 添加ao1和ao2的当前数值（由定时器更新的输出）
 	cJSON_AddNumberToObject(result, "ao1", ao1);
 	cJSON_AddNumberToObject(result, "ao2", ao2);
+
+	// 添加ai1和ai2的当前数值（通过write_analog写入的输入）
+	cJSON_AddNumberToObject(result, "ai1", ai1);
+	cJSON_AddNumberToObject(result, "ai2", ai2);
 
 	return result;
 }
