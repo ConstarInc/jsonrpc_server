@@ -205,6 +205,7 @@ int main(void) {
 	// 初始化随机数种子
 	srand(time(NULL));
 
+	printf("Starting JSON-RPC server on port %d\n", PORT);
 	jrpc_server_init(&my_server, PORT);
 	my_server.debug_level = 1;
 
